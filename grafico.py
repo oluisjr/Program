@@ -107,7 +107,11 @@ def export_pdf(df, fig):
     for _, row in df.iterrows():
         x = x_start
         for i, val in enumerate(row):
-            c.drawString(x, y, str(val))
+            if isinstance(val, float) and val.is_integer():
+               c.drawString(x, y, str(int(val)))
+            else:
+               c.drawString(x, y, str(val))
+
             x += col_widths[i]
         y -= row_height
         if y < 100:
