@@ -164,7 +164,7 @@ st.markdown("""
  
 tema = st.sidebar.radio("Tema", ["Claro", "Escuro"], label_visibility="hidden")
  
-bg_color = "#e6e6e6" if tema == "Claro" else "#06061D"
+bg_color = "#f1f1f1" if tema == "Claro" else "#06061D"
 text_color = "#02001A" if tema == "Claro" else "#fffef6"
 button_color = "#0073f7" if tema == "Claro" else "#236bbd"
 
