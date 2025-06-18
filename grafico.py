@@ -163,18 +163,29 @@ st.markdown("""
 """, unsafe_allow_html=True)
  
 tema = st.sidebar.radio("Tema", ["Claro", "Escuro"], label_visibility="hidden")
- 
+
 bg_color = "#f1f1f1" if tema == "Claro" else "#06061D"
 text_color = "#02001A" if tema == "Claro" else "#fffef6"
 button_color = "#0073f7" if tema == "Claro" else "#236bbd"
 
-# Estilos CSS dinâmicos
+# CSS customizado mais robusto
 st.markdown(f"""
     <style>
-        .main {{ background-color: {bg_color}; }}
-        h1, h2, h3, h4, h5, h6, p, .stText {{ color: {text_color} !important; }}
-        .stDataFrame {{ color: {text_color}; }}
-        .stButton>button {{ background-color: {button_color}; }}
+        /* Fundo principal */
+        [data-testid="stAppViewContainer"] > .main {{
+            background-color: {bg_color};
+        }}
+
+        /* Texto geral */
+        [data-testid="stMarkdownContainer"] *, .stTextInput, .stSelectbox, .stDataFrame, .stTable {{
+            color: {text_color} !important;
+        }}
+
+        /* Botão */
+        button[kind="primary"] {{
+            background-color: {button_color} !important;
+            color: white !important;
+        }}
     </style>
 """, unsafe_allow_html=True)
  
