@@ -136,31 +136,6 @@ st.set_page_config(
     page_title="CSN - Treinamentos",
     page_icon=favicon
 )
- 
-# Estilos CSS fixos (texto sempre branco nos controles)
-st.markdown("""
-<style>
-    /* Botões */
-    .stButton>button {
-        color: white !important;
-    }
-    
-    /* Radio buttons no sidebar */
-    .stRadio>div {
-        background-color: #0073f7;
-        padding: 10px;
-        border-radius: 15px;
-    }
-    .stRadio>div>label {
-        color: white !important;
-    }
-    
-    /* Select boxes */
-    .stSelectbox>div>div>select {
-        color: white !important;
-    }
-</style>
-""", unsafe_allow_html=True)
   
 bg_color = "#06061D"
 text_color = "#fffef6"
