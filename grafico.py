@@ -161,34 +161,82 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
- 
-tema = st.sidebar.radio("Tema", ["Claro", "Escuro"], label_visibility="hidden")
+  
+bg_color = "#06061D"
+text_color = "#fffef6"
+button_color = "#236bbd"
 
-bg_color = "#f1f1f1" if tema == "Claro" else "#06061D"
-text_color = "#02001A" if tema == "Claro" else "#fffef6"
-button_color = "#0073f7" if tema == "Claro" else "#236bbd"
+# Cores adicionais específicas para elementos no tema escuro
+# Cores para o menu dropdown
+menu_bg_color = "#1e1e2f"
+menu_text_color = "#ffffff"
+menu_item_hover = "#33334d"
+df_bg_color = "#1a1a2d"
 
-# CSS customizado mais robusto
+# CSS dinâmico com todos os ajustes
 st.markdown(f"""
     <style>
-        /* Fundo principal */
+        /* Fundo principal da página */
         [data-testid="stAppViewContainer"] > .main {{
+            background-color: {bg_color};
+        }}
+        
+        /* Fundo da sidebar */
+        [data-testid="stSidebar"] {{
             background-color: {bg_color};
         }}
 
         /* Texto geral */
-        [data-testid="stMarkdownContainer"] *, .stTextInput, .stSelectbox, .stDataFrame, .stTable {{
+        h1, h2, h3, h4, h5, h6, p, label, span, div {{
             color: {text_color} !important;
         }}
 
-        /* Botão */
-        button[kind="primary"] {{
+        /* DataFrame com fundo ajustado */
+        [data-testid="stDataFrame"] {{
+            background-color: {df_bg_color} !important;
+            color: {text_color} !important;
+        }}
+
+        /* Selectbox e área fechada */
+        div[data-baseweb="select"] > div {{
+            background-color: {bg_color} !important;
+            color: {text_color} !important;
+        }}
+
+        /* Menu suspenso (dropdown aberto) */
+        div[data-baseweb="menu"] {{
+            background-color: {menu_bg_color} !important;
+            color: {menu_text_color} !important;
+            border: 1px solid #555 !important;
+        }}
+
+        /* Itens individuais da lista */
+        div[data-baseweb="menu"] div[role="option"] {{
+            background-color: {menu_bg_color} !important;
+            color: {menu_text_color} !important;
+        }}
+
+        /* Item ao passar o mouse */
+        div[data-baseweb="menu"] div[role="option"]:hover {{
+            background-color: {menu_item_hover} !important;
+            color: {menu_text_color} !important;
+        }}
+
+        div[data-baseweb="menu"] * {{
+            color: {menu_text_color} !important;
+        }}
+
+        /* Botões */
+        .stButton>button {{
             background-color: {button_color} !important;
             color: white !important;
+            border: none;
+            padding: 0.4em 1em;
+            border-radius: 13px;
         }}
     </style>
 """, unsafe_allow_html=True)
- 
+
 # Logo e título
 st.image(LOGO_PATH, width=180)
 st.title("Painel de Treinamentos Pendentes")
