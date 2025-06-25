@@ -27,7 +27,7 @@ url = SUPABASE_URL
 key = SUPABASE_KEY 
 
 LOGO_PATH="LogoCSN_Cinza.png"
-FAVICON_PATH="favicon.png"
+FAVICON_PATH="Favicon.png"
 
 # === CONFIGURAÇÃO STREAMLIT ===
 favicon = Image.open(FAVICON_PATH).resize((48, 24))
