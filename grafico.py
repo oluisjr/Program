@@ -197,32 +197,70 @@ if mes1 == mes2:
     st.warning("Selecione dois meses diferentes.")
 else:
     df = carregar_dados(mes1, mes2, area_sel)
-    st.dataframe(df, use_container_width=True)
-    
-    st.markdown("### Gráfico Comparativo")
-    fig = gerar_grafico(df, mes1, mes2)
-    st.pyplot(fig)
-    
-    # Botões de exportação
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Salvar no Excel"):
-            try:
-                caminho = salvar_excel(fig)
-                st.success(f"Gráfico salvo no Excel em: {caminho}")
-            except Exception as e:
-                st.error(f"Erro ao salvar no Excel: {e}")
-    
-    with col2:
-        if st.button("Exportar PDF"):
-            try:
-                pdf_path = export_pdf(df, fig)
-                with open(pdf_path, "rb") as f:
-                    st.download_button(
-                        "Baixar PDF",
-                        f,
-                        file_name=f"treinamentos_pendentes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                        mime="application/pdf"
-                    )
-            except Exception as e:
-                st.error(f"Erro ao gerar PDF: {e}")
+    if not df.empty:
+        st.dataframe(df, use_container_width=True)
+        st.markdown("### Gráfico Comparativo")
+        fig = gerar_grafico(df, mes1, mes2)
+        st.pyplot(fig)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Baixar para Excel"):
+                try:
+                    excel_data = exportar_para_excel_pivo()
+                    if excel_data:
+                        st.download_button("Download Excel Completo", excel_data, file_name="treinamentos_completo.xlsx")
+                except Exception as e:
+                    st.error(f"Erro ao exportar: {e}")
+
+# === ÁREA PROTEGIDA PARA EDIÇÃO ===
+with st.expander("Editar dados (restrito)", expanded=st.session_state["autenticado"]):
+    if not st.session_state["autenticado"]:
+        senha = st.text_input("Senha de edição", type="password")
+        if senha == SENHA_EDICAO:
+            st.success("Acesso liberado")
+            st.session_state["autenticado"] = True
+            st.rerun()
+        elif senha:
+            st.error("Senha incorreta")
+    else:
+        if st.button("Encerrar sessão de edição"):
+            st.session_state["autenticado"] = False
+            st.rerun()
+
+        with col2:
+                    st.markdown("### Importar Excel para atualização de dados")
+                    uploaded_file = st.file_uploader("Escolha o arquivo Excel", type=["xlsx"])
+
+                    if uploaded_file is not None:
+                        df_importado = pd.read_excel(uploaded_file)
+                        df_importado.columns = df_importado.columns.str.strip().str.lower()
+
+                        if "area" in df_importado.columns:
+                            meses_base = [col.split()[0] for col in df_importado.columns if "em dia" in col or "vencido" in col]
+                            meses_base = sorted(set(meses_base))
+
+                            for _, row in df_importado.iterrows():
+                                area = str(row["area"]).strip().upper()
+
+                                for mes in meses_base:
+                                    em_dia_col = f"{mes.lower()} em dia"
+                                    vencido_col = f"{mes.lower()} vencido"
+
+                                    if em_dia_col in df_importado.columns and vencido_col in df_importado.columns:
+                                        em_dia = int(row[em_dia_col]) if not pd.isna(row[em_dia_col]) else 0
+                                        vencido = int(row[vencido_col]) if not pd.isna(row[vencido_col]) else 0
+
+                                        salvar_registro(area, mes, em_dia, vencido)
+                            st.success("Dados do Excel importados e aplicados com sucesso!")
+                        else:
+                            st.error("O arquivo Excel deve conter a coluna: area")
+        # === EDIÇÃO MANUAL ===
+        mes_edicao = st.selectbox("Mês para editar", meses)
+        area = st.selectbox("Nome da área", areas)
+        em_dia = st.number_input("Em dia", min_value=0, step=1)
+        vencido = st.number_input("Vencido", min_value=0, step=1)
+
+        if st.button("Salvar dados", key="botao_salvar"):
+            salvar_registro(area, mes_edicao, em_dia, vencido)
+            st.success("Dados atualizados com sucesso!")
