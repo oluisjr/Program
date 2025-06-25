@@ -1,21 +1,29 @@
-import streamlit as st
-import pandas as pd
 import matplotlib.pyplot as plt
+from dotenv import load_dotenv
+import streamlit as st
+from io import BytesIO
+from PIL import Image
+import pandas as pd
 import numpy as np
 import os
-from PIL import Image
-from io import BytesIO
 from openpyxl import Workbook, load_workbook
 from openpyxl.drawing.image import Image as ExcelImage
 from reportlab.lib.pagesizes import A4, landscape
-from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from supabase import create_client, Client
+from reportlab.pdfgen import canvas
+
+load_dotenv()
 
 # === CONEXÃO SUPABASE ===
-url = st.secrets["supabase"]["url"]
-key = st.secrets["supabase"]["key"]
-supabase: Client = create_client(url, key)
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+SENHA_EDICAO = os.getenv('SENHA_EDICAO')
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+url = SUPABASE_URL
+key = SUPABASE_KEY
 
 LOGO_PATH="LogoCSN_Cinza.png"
 FAVICON_PATH="favicon.png"
@@ -208,7 +216,7 @@ else:
 with st.expander("Editar dados (restrito)", expanded=st.session_state["autenticado"]):
     if not st.session_state["autenticado"]:
         senha = st.text_input("Senha de edição", type="password")
-        if senha == st.secrets["geral"]["senha_edicao"]:
+        if senha == SENHA_EDICAO:
             st.success("Acesso liberado")
             st.session_state["autenticado"] = True
             st.rerun()
