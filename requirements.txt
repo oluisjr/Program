@@ -5,5 +5,5 @@ numpy
 openpyxl
 Pillow
 reportlab
-python-dotenv
 supabase
+python-dotenv
