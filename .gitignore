@@ -1,0 +1,10 @@
+# Ignorar arquivos sensíveis
+secrets.toml
+.env
+
+# Ignorar arquivos temporários
+*.pyc
+__pycache__/
+*.log
+*.png
+*.xlsx

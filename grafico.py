@@ -1,237 +1,265 @@
-import streamlit as st
-import pandas as pd
 import matplotlib.pyplot as plt
+from dotenv import load_dotenv
+import streamlit as st
+from io import BytesIO
+from PIL import Image
+import pandas as pd
 import numpy as np
 import os
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.drawing.image import Image as ExcelImage
-from PIL import Image
 from reportlab.lib.pagesizes import A4, landscape
-from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
-from datetime import datetime
- 
-# === CONFIGURAÇÕES ===
-ARQUIVO_EXCEL = "Treinamentos Pendentes - Junção dos meses.xlsx"
-LOGO_PATH = "LogoCSN_Cinza.png"
-FAVICON_PATH = "Favicon.png"
+from supabase import create_client, Client
+from reportlab.pdfgen import canvas
 
-MAPA_COLUNAS = {
-    "Janeiro": (1, 2), "Fevereiro": (3, 4), "Março": (5, 6), "Abril": (7, 8),
-    "Maio": (9, 10), "Junho": (11, 12), "Julho": (13, 14), "Agosto": (15, 16),
-    "Setembro": (17, 18), "Outubro": (19, 20), "Novembro": (21, 22), "Dezembro": (23, 24)
-}
- 
-# === FUNÇÕES ===
-def carregar_dados(mes1, mes2, area=None):
-    col1, col2 = MAPA_COLUNAS[mes1]
-    col3, col4 = MAPA_COLUNAS[mes2]
-    df = pd.read_excel(ARQUIVO_EXCEL, sheet_name="Base", skiprows=1)
-    df = df.iloc[:, [0, col1, col2, col3, col4]]
-    df.columns = [
-        "Área",
-        f"{mes1} (Em dia)",
-        f"{mes1} (Vencido)",
-        f"{mes2} (Em dia)",
-        f"{mes2} (Vencido)"
-    ]
-    df = df.dropna(subset=["Área"]).reset_index(drop=True)
-    df.iloc[:, 1:] = df.iloc[:, 1:].apply(pd.to_numeric, errors="coerce").fillna(0).astype(int)
-    if area and area != "Todas":
-        df = df[df["Área"] == area].reset_index(drop=True)
-    return df
- 
-def gerar_grafico(df, mes1, mes2, figsize=(16, 0.35)):
-    df_plot = df[::-1]
-    fig, ax = plt.subplots(figsize=(figsize[0], len(df_plot) * figsize[1]))
-    y = np.arange(len(df_plot))
-    bar_h = 0.4
-    bars1 = ax.barh(y, df_plot[f"{mes1} (Em dia)"], height=bar_h, label=f"{mes1} Em Dia", color="#c5e0b4")
-    bars2 = ax.barh(y, df_plot[f"{mes1} (Vencido)"], height=bar_h, left=df_plot[f"{mes1} (Em dia)"], label=f"{mes1} Vencido", color="#ff7357")
-    bars3 = ax.barh(y+bar_h, df_plot[f"{mes2} (Em dia)"], height=bar_h, label=f"{mes2} Em Dia", color="#759a64")
-    bars4 = ax.barh(y+bar_h, df_plot[f"{mes2} (Vencido)"], height=bar_h, left=df_plot[f"{mes2} (Em dia)"], label=f"{mes2} Vencido", color="#af2d11")
-    
-    for bars in [bars1, bars2, bars3, bars4]:
-        for bar in bars:
-            w = bar.get_width()
-            if w > 0:
-                ax.text(bar.get_x() + w / 2, bar.get_y() + bar.get_height() / 2, str(int(w)),
-                        ha='center', va='center', fontsize=7, color='black')
- 
-    ax.set_yticks(y + bar_h/2)
-    ax.set_yticklabels(df_plot["Área"], fontsize=8)
-    ax.set_xticks([])
-    ax.legend(fontsize=8)
-    ax.grid(axis="x", linestyle="--", alpha=0.7)
-    plt.tight_layout()
-    return fig
- 
-def salvar_excel(fig):
-    fig.savefig("treinamentos_pendentes.png", bbox_inches="tight", dpi=300)
-    img = Image.open("treinamentos_pendentes.png")
-    img.save("grafico_temp_excel.png")
-    wb = load_workbook(ARQUIVO_EXCEL)
-    ws = wb["Base"]
-    if hasattr(ws, "_images"):
-        ws._images.clear()
-    ws.add_image(ExcelImage("grafico_temp_excel.png"), "A2")
-    wb.save(ARQUIVO_EXCEL)
-    os.remove("grafico_temp_excel.png")
-    return os.getcwd()
- 
-def export_pdf(df, fig):
-    from datetime import datetime
-    pdf_path = f"treinamentos_pendentes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    fig.savefig("grafico_pdf_temp.png", bbox_inches="tight", dpi=300)
+load_dotenv()
 
-    c = canvas.Canvas(pdf_path, pagesize=landscape(A4))
-    width, height = landscape(A4)
+# === CONEXÃO SUPABASE ===
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+SENHA_EDICAO = os.getenv('SENHA_EDICAO')
 
-    c.setFont("Helvetica-Bold", 16)
-    c.drawCentredString(width/2, height - 30, "Treinamentos Pendentes por Área")
-    c.setFont("Helvetica", 8)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-    x_start = 40
-    y = height - 60
-    row_height = 12
-    col_widths = [width * 0.4] + [width * 0.15] * (len(df.columns) - 1)
+url = SUPABASE_URL
+key = SUPABASE_KEY
 
-    # Cabeçalho
-    x = x_start
-    for i, col in enumerate(df.columns):
-        c.drawString(x, y, str(col))
-        x += col_widths[i]
-    y -= row_height
+LOGO_PATH="LogoCSN_Cinza.png"
+FAVICON_PATH="favicon.png"
 
-    # Dados
-    for _, row in df.iterrows():
-        x = x_start
-        for i, val in enumerate(row):
-            c.drawString(x, y, str(val))
-            x += col_widths[i]
-        y -= row_height
-        if y < 100:
-            c.showPage()
-            y = height - 50
-            c.setFont("Helvetica", 8)
-
-    img_reader = ImageReader("grafico_pdf_temp.png")
-    img_w, img_h = img_reader.getSize()
-    aspect_ratio = img_w / img_h
-    max_graph_width = width - 80
-    max_graph_height = y - 40
-    graph_width = min(max_graph_width, max_graph_height * aspect_ratio)
-    graph_height = graph_width / aspect_ratio
-    x_pos = (width - graph_width) / 2
-    c.drawImage(img_reader, x_pos, 40, width=graph_width, height=graph_height, preserveAspectRatio=True, mask='auto')
-    c.save()
-    os.remove("grafico_pdf_temp.png")
-    return pdf_path
- 
-# === INTERFACE ===
-# Configurar favicon (48x24 pixels)
+# === CONFIGURAÇÃO STREAMLIT ===
 favicon = Image.open(FAVICON_PATH).resize((48, 24))
 st.set_page_config(
     layout="wide",
     page_title="CSN - Treinamentos",
     page_icon=favicon
 )
- 
-# Estilos CSS fixos (texto sempre branco nos controles)
-st.markdown("""
-<style>
-    /* Botões */
-    .stButton>button {
-        color: white !important;
-    }
-    
-    /* Radio buttons no sidebar */
-    .stRadio>div {
-        background-color: #0073f7;
-        padding: 10px;
-        border-radius: 15px;
-    }
-    .stRadio>div>label {
-        color: white !important;
-    }
-    
-    /* Select boxes */
-    .stSelectbox>div>div>select {
-        color: white !important;
-    }
-</style>
-""", unsafe_allow_html=True)
- 
-tema = st.sidebar.radio("Tema", ["Claro", "Escuro"], label_visibility="hidden")
-
-bg_color = "#f1f1f1" if tema == "Claro" else "#06061D"
-text_color = "#02001A" if tema == "Claro" else "#fffef6"
-button_color = "#0073f7" if tema == "Claro" else "#236bbd"
-
-# CSS customizado mais robusto
-st.markdown(f"""
-    <style>
-        /* Fundo principal */
-        [data-testid="stAppViewContainer"] > .main {{
-            background-color: {bg_color};
-        }}
-
-        /* Texto geral */
-        [data-testid="stMarkdownContainer"] *, .stTextInput, .stSelectbox, .stDataFrame, .stTable {{
-            color: {text_color} !important;
-        }}
-
-        /* Botão */
-        button[kind="primary"] {{
-            background-color: {button_color} !important;
-            color: white !important;
-        }}
-    </style>
-""", unsafe_allow_html=True)
- 
-# Logo e título
 st.image(LOGO_PATH, width=180)
 st.title("Painel de Treinamentos Pendentes")
- 
-# Controles
-meses = list(MAPA_COLUNAS.keys())
+
+# === VARIÁVEL DE SESSÃO ===
+if "autenticado" not in st.session_state:
+    st.session_state["autenticado"] = False
+
+# === FUNÇÕES ===
+def carregar_dados(mes1, mes2, area=None):
+    response = supabase.table("treinamentos").select("*").execute()
+    dados = response.data
+
+    df_raw = pd.DataFrame(dados)
+    if df_raw.empty:
+        st.warning("Nenhum dado encontrado na tabela 'treinamentos'.")
+        return pd.DataFrame()
+
+    df_raw.columns = df_raw.columns.str.lower()
+    df_raw["mes"] = df_raw["mes"].str.strip().str.upper()
+    df_raw["area"] = df_raw["area"].str.strip().str.upper()
+
+    if area and area != "Todas":
+        area = area.strip().upper()
+        df_raw = df_raw[df_raw["area"] == area]
+
+    df_raw = df_raw[df_raw["mes"].isin([mes1.upper(), mes2.upper()])]
+
+    if df_raw.empty:
+        st.warning("Nenhum dado correspondente aos meses selecionados.")
+        return pd.DataFrame()
+
+    df = df_raw.pivot_table(index='area', columns='mes', values=['em_dia', 'vencido'], fill_value=0)
+    df = df.sort_index(axis=1, level=1)
+    df.columns = [f"{mes.title()} ({tipo.replace('_', ' ').title()})" for tipo, mes in df.columns]
+    df.reset_index(inplace=True)
+
+    if "area" not in df.columns:
+        st.error("Erro: coluna 'area' ausente no DataFrame final.")
+        st.stop()
+
+    return df
+
+def salvar_registro(area, mes, em_dia, vencido):
+    area = area.strip().upper()
+    mes = mes.strip().upper()
+
+    resultado = supabase.table("treinamentos").select("id").match({"area": area, "mes": mes}).execute()
+
+    if resultado.data:
+        id_existente = resultado.data[0]['id']
+        supabase.table("treinamentos").update({"em_dia": em_dia, "vencido": vencido}).eq("id", id_existente).execute()
+    else:
+        supabase.table("treinamentos").insert({"area": area, "mes": mes, "em_dia": em_dia, "vencido": vencido}).execute()
+
+def gerar_grafico(df, mes1, mes2):
+    df_plot = df[::-1].copy()
+    fig, ax = plt.subplots(figsize=(16, len(df_plot) * 0.35))
+    y = np.arange(len(df_plot))
+    bar_h = 0.4
+
+    for idx, (mes, cor1, cor2) in enumerate([(mes1, "#c5e0b4", "#ff7357"), (mes2, "#759a64", "#af2d11")]):
+        col_em_dia = f"{mes.title()} (Em Dia)"
+        col_vencido = f"{mes.title()} (Vencido)"
+        offset = idx * bar_h
+
+        if col_em_dia not in df_plot.columns or col_vencido not in df_plot.columns:
+            st.warning(f"Colunas para o mês '{mes}' não foram encontradas.")
+            continue
+
+        em_dia_vals = df_plot[col_em_dia]
+        vencido_vals = df_plot[col_vencido]
+
+        ax.barh(y + offset, em_dia_vals, height=bar_h, label=f"{mes.title()} Em Dia", color=cor1)
+        ax.barh(y + offset, vencido_vals, height=bar_h, left=em_dia_vals, label=f"{mes.title()} Vencido", color=cor2)
+
+        for i, (em, ven) in enumerate(zip(em_dia_vals, vencido_vals)):
+            if em > 0:
+                ax.text(em / 2, i + offset, str(int(em)), ha="center", va="center", fontsize=7)
+            if ven > 0:
+                ax.text(em + ven / 2, i + offset, str(int(ven)), ha="center", va="center", fontsize=7)
+
+    ax.set_yticks(y + bar_h / 2)
+    ax.set_yticklabels(df_plot["area"], fontsize=8)
+    ax.set_xticks([])
+    ax.legend(fontsize=8)
+    ax.grid(axis="x", linestyle="--", alpha=0.7)
+    plt.tight_layout()
+    return fig
+
+def exportar_para_excel_pivo():
+    response = supabase.table("treinamentos").select("*").execute()
+    dados = response.data
+    
+    df_raw = pd.DataFrame(dados)
+    if df_raw.empty:
+        st.error("Nenhum dado encontrado na tabela 'treinamentos'.")
+        return None
+
+    df_raw.columns = df_raw.columns.str.lower()
+    df_raw["mes"] = df_raw["mes"].str.strip().str.title()
+    df_raw["area"] = df_raw["area"].str.strip().str.upper()
+
+    df_pivo = df_raw.pivot_table(index='area', columns='mes', values=['em_dia', 'vencido'], fill_value=0)
+    df_pivo = df_pivo.sort_index(axis=1, level=1)
+
+    df_pivo.columns = [f"{mes} Em Dia" if tipo == 'em_dia' else f"{mes} Vencido" for tipo, mes in df_pivo.columns]
+    df_pivo.reset_index(inplace=True)
+
+    meses_ordem = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+    colunas_ordenadas = ['area']
+    for mes in meses_ordem:
+        if f"{mes} Em Dia" in df_pivo.columns:
+            colunas_ordenadas.append(f"{mes} Em Dia")
+        if f"{mes} Vencido" in df_pivo.columns:
+            colunas_ordenadas.append(f"{mes} Vencido")
+
+    df_pivo = df_pivo[colunas_ordenadas]
+
+    # Salvar gráfico como imagem temporária
+    grafico_temp = "grafico_temp.png"
+    fig.savefig(grafico_temp, bbox_inches='tight', dpi=300)
+    plt.close(fig)
+
+    # Criar arquivo Excel com gráfico
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_pivo.to_excel(writer, index=False, sheet_name='Base Completa')
+
+    # Reabrir para adicionar a imagem
+    output.seek(0)
+    wb = load_workbook(output)
+    ws = wb.active
+
+    img = ExcelImage(grafico_temp)
+    img.anchor = "A2"
+    ws.add_image(img)
+
+    # Salvar novamente no buffer
+    final_output = BytesIO()
+    wb.save(final_output)
+    final_output.seek(0)
+
+    os.remove(grafico_temp)
+
+    return final_output
+# === INTERFACE ===
+meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
+
 col1, col2, col3 = st.columns(3)
 mes1 = col1.selectbox("Escolha o 1º mês", meses, index=4)
 mes2 = col2.selectbox("Escolha o 2º mês", meses, index=5)
-areas = ["Todas"] + sorted(pd.read_excel(ARQUIVO_EXCEL, sheet_name="Base", skiprows=1).iloc[:,0].dropna().unique().tolist())
+
+dados_supabase = supabase.table("treinamentos").select("area").execute().data
+areas_distintas = sorted(set(d['area'].strip().upper() for d in dados_supabase))
+areas = ["Todas"] + areas_distintas
 area_sel = col3.selectbox("Filtrar por área", areas)
- 
-# Conteúdo principal
+
 if mes1 == mes2:
     st.warning("Selecione dois meses diferentes.")
 else:
     df = carregar_dados(mes1, mes2, area_sel)
-    st.dataframe(df, use_container_width=True)
-    
-    st.markdown("### Gráfico Comparativo")
-    fig = gerar_grafico(df, mes1, mes2)
-    st.pyplot(fig)
-    
-    # Botões de exportação
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Salvar no Excel"):
-            try:
-                caminho = salvar_excel(fig)
-                st.success(f"Gráfico salvo no Excel em: {caminho}")
-            except Exception as e:
-                st.error(f"Erro ao salvar no Excel: {e}")
-    
-    with col2:
-        if st.button("Exportar PDF"):
-            try:
-                pdf_path = export_pdf(df, fig)
-                with open(pdf_path, "rb") as f:
-                    st.download_button(
-                        "Baixar PDF",
-                        f,
-                        file_name=f"treinamentos_pendentes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                        mime="application/pdf"
-                    )
-            except Exception as e:
-                st.error(f"Erro ao gerar PDF: {e}")
+    if not df.empty:
+        st.dataframe(df, use_container_width=True)
+        st.markdown("### Gráfico Comparativo")
+        fig = gerar_grafico(df, mes1, mes2)
+        st.pyplot(fig)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Baixar para Excel"):
+                try:
+                    excel_data = exportar_para_excel_pivo()
+                    if excel_data:
+                        st.download_button("Download Excel Completo", excel_data, file_name="treinamentos_completo.xlsx")
+                except Exception as e:
+                    st.error(f"Erro ao exportar: {e}")
+
+# === ÁREA PROTEGIDA PARA EDIÇÃO ===
+with st.expander("Editar dados (restrito)", expanded=st.session_state["autenticado"]):
+    if not st.session_state["autenticado"]:
+        senha = st.text_input("Senha de edição", type="password")
+        if senha == SENHA_EDICAO:
+            st.success("Acesso liberado")
+            st.session_state["autenticado"] = True
+            st.rerun()
+        elif senha:
+            st.error("Senha incorreta")
+    else:
+        if st.button("Encerrar sessão de edição"):
+            st.session_state["autenticado"] = False
+            st.rerun()
+
+        with col2:
+                    st.markdown("### Importar Excel para atualização de dados")
+                    uploaded_file = st.file_uploader("Escolha o arquivo Excel", type=["xlsx"])
+
+                    if uploaded_file is not None:
+                        df_importado = pd.read_excel(uploaded_file)
+                        df_importado.columns = df_importado.columns.str.strip().str.lower()
+
+                        if "area" in df_importado.columns:
+                            meses_base = [col.split()[0] for col in df_importado.columns if "em dia" in col or "vencido" in col]
+                            meses_base = sorted(set(meses_base))
+
+                            for _, row in df_importado.iterrows():
+                                area = str(row["area"]).strip().upper()
+
+                                for mes in meses_base:
+                                    em_dia_col = f"{mes.lower()} em dia"
+                                    vencido_col = f"{mes.lower()} vencido"
+
+                                    if em_dia_col in df_importado.columns and vencido_col in df_importado.columns:
+                                        em_dia = int(row[em_dia_col]) if not pd.isna(row[em_dia_col]) else 0
+                                        vencido = int(row[vencido_col]) if not pd.isna(row[vencido_col]) else 0
+
+                                        salvar_registro(area, mes, em_dia, vencido)
+                            st.success("Dados do Excel importados e aplicados com sucesso!")
+                        else:
+                            st.error("O arquivo Excel deve conter a coluna: area")
+        # === EDIÇÃO MANUAL ===
+        mes_edicao = st.selectbox("Mês para editar", meses)
+        area = st.selectbox("Nome da área", areas)
+        em_dia = st.number_input("Em dia", min_value=0, step=1)
+        vencido = st.number_input("Vencido", min_value=0, step=1)
+
+        if st.button("Salvar dados", key="botao_salvar"):
+            salvar_registro(area, mes_edicao, em_dia, vencido)
+            st.success("Dados atualizados com sucesso!")
