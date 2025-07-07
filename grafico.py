@@ -38,6 +38,9 @@ st.set_page_config(
 )
 st.image(LOGO_PATH, width=180)
 st.title("Painel de Treinamentos Pendentes")
+if st.session_state.get('importacao_sucesso', False):
+    st.success("Dados do Excel importados e aplicados com sucesso!")
+    st.session_state['importacao_sucesso'] = False  # Limpa a flag para futuras operações
 
 # === VARIÁVEL DE SESSÃO ===
 if "autenticado" not in st.session_state:
@@ -68,9 +71,39 @@ def carregar_dados(mes1, mes2, area=None):
         return pd.DataFrame()
 
     df = df_raw.pivot_table(index='area', columns='mes', values=['em_dia', 'vencido'], fill_value=0)
-    df = df.sort_index(axis=1, level=1)
-    df.columns = [f"{mes.title()} ({tipo.replace('_', ' ').title()})" for tipo, mes in df.columns]
+
+    # Garante que as colunas fiquem na ordem mes1 -> mes2
+    df = df[[('em_dia', mes1.upper()), ('vencido', mes1.upper()), ('em_dia', mes2.upper()), ('vencido', mes2.upper())]]
+
+    df.columns = [f"{mes1.title()} (Em Dia)", f"{mes1.title()} (Vencido)", f"{mes2.title()} (Em Dia)", f"{mes2.title()} (Vencido)"]
     df.reset_index(inplace=True)
+
+    # Ordem correta das áreas
+    ordem_areas = [
+        "CPIN - COORDENACAO DE PINTURA",
+        "CQP/GS - COORDENAÇÃO DE QUALIDADE E PCP",
+        "CQP-LAB - SUPERVISAO DE LABORATORIO",
+        "GCZ- LCI/LIN - SUPERVISAO DE CORTE LONGITUDINAL",
+        "GCZ- LCT/LPR/LBT - SUPERVISAO DE CORTE TRANSVERSAL",
+        "GCZ- LLB - SUPERVISAO DE LAVADORA",
+        "GCZ- LSL/LGT - SUPERVISAO DE SOLDA A LASER",
+        "GCZ/GS - GERENCIA CENTRO DE SERVICO E PINTURA",
+        "GCZ-CS - SUPERVISÃO DE CENTRO DE SERVIÇOS",
+        "GDM/GS - GERENCIA DE MANUTENCAO",
+        "GDM-EXEC - SUPERVISAO DE EXECUCAO",
+        "GDM-INSPELE - SUPERVISAO DE INSPECAO ELETRICA",
+        "GDM-INSPMEC - SUPERVISAO DE INSPECAO MECANICA",
+        "GGOP/GS - GERENCIA GERAL DE OPERACOES PORTO REAL",
+        "GPR-PLANPROG - SUPERVISAO DE PLANEJAMENTO E PROGRAMACAO",
+        "GZL/GS - GERENCIA DE ZINCAGEM E LOGÍSTICA",
+        "GZL-EMB - SUPERVISAO DE EMBALAGEM",
+        "GZL-LOG - SUPERVISAO DE LOGISTICA",
+        "GZL-ZINCAGEM - SUPERVISAO DA ZINCAGEM",
+        "TOTAL GERAL"
+    ]
+
+    df['area'] = pd.Categorical(df['area'], categories=ordem_areas, ordered=True)
+    df = df.sort_values('area')
 
     if "area" not in df.columns:
         st.error("Erro: coluna 'area' ausente no DataFrame final.")
@@ -99,7 +132,7 @@ def gerar_grafico(df, mes1, mes2):
     for idx, (mes, cor1, cor2) in enumerate([(mes1, "#c5e0b4", "#ff7357"), (mes2, "#759a64", "#af2d11")]):
         col_em_dia = f"{mes.title()} (Em Dia)"
         col_vencido = f"{mes.title()} (Vencido)"
-        offset = idx * bar_h
+        offset = (1 - idx) * bar_h
 
         if col_em_dia not in df_plot.columns or col_vencido not in df_plot.columns:
             st.warning(f"Colunas para o mês '{mes}' não foram encontradas.")
@@ -252,9 +285,11 @@ with st.expander("Editar dados (restrito)", expanded=st.session_state["autentica
                                         vencido = int(row[vencido_col]) if not pd.isna(row[vencido_col]) else 0
 
                                         salvar_registro(area, mes, em_dia, vencido)
-                            st.success("Dados do Excel importados e aplicados com sucesso!")
+                            st.session_state['importacao_sucesso'] = True  # Flag temporária
+                            st.session_state['autenticado'] = False
+                            st.rerun()
                         else:
-                            st.error("O arquivo Excel deve conter a coluna: area")
+                            st.error(f"O arquivo Excel deve conter a coluna: 'area'.")
         # === EDIÇÃO MANUAL ===
         mes_edicao = st.selectbox("Mês para editar", meses)
         area = st.selectbox("Nome da área", areas)
