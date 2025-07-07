@@ -203,6 +203,8 @@ def exportar_para_excel_pivo():
     ws = wb.active
 
     img = ExcelImage(grafico_temp)
+    img.width = 600
+    img.height = 420
     img.anchor = "A2"
     ws.add_image(img)
 
