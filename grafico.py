@@ -29,6 +29,30 @@ key = SUPABASE_KEY
 LOGO_PATH="LogoCSN_Cinza.png"
 FAVICON_PATH="Favicon.png"
 
+    # Ordem correta das áreas
+    ordem_areas = [
+        "CPIN - COORDENACAO DE PINTURA",
+        "CQP/GS - COORDENAÇÃO DE QUALIDADE E PCP",
+        "CQP-LAB - SUPERVISAO DE LABORATORIO",
+        "GCZ- LCI/LIN - SUPERVISAO DE CORTE LONGITUDINAL",
+        "GCZ- LCT/LPR/LBT - SUPERVISAO DE CORTE TRANSVERSAL",
+        "GCZ- LLB - SUPERVISAO DE LAVADORA",
+        "GCZ- LSL/LGT - SUPERVISAO DE SOLDA A LASER",
+        "GCZ/GS - GERENCIA CENTRO DE SERVICO E PINTURA",
+        "GCZ-CS - SUPERVISÃO DE CENTRO DE SERVIÇOS",
+        "GDM/GS - GERENCIA DE MANUTENCAO",
+        "GDM-EXEC - SUPERVISAO DE EXECUCAO",
+        "GDM-INSPELE - SUPERVISAO DE INSPECAO ELETRICA",
+        "GDM-INSPMEC - SUPERVISAO DE INSPECAO MECANICA",
+        "GGOP/GS - GERENCIA GERAL DE OPERACOES PORTO REAL",
+        "GPR-PLANPROG - SUPERVISAO DE PLANEJAMENTO E PROGRAMACAO",
+        "GZL/GS - GERENCIA DE ZINCAGEM E LOGÍSTICA",
+        "GZL-EMB - SUPERVISAO DE EMBALAGEM",
+        "GZL-LOG - SUPERVISAO DE LOGISTICA",
+        "GZL-ZINCAGEM - SUPERVISAO DA ZINCAGEM",
+        "TOTAL GERAL"
+    ]
+
 # === CONFIGURAÇÃO STREAMLIT ===
 favicon = Image.open(FAVICON_PATH).resize((48, 24))
 st.set_page_config(
@@ -77,30 +101,6 @@ def carregar_dados(mes1, mes2, area=None):
 
     df.columns = [f"{mes1.title()} (Em Dia)", f"{mes1.title()} (Vencido)", f"{mes2.title()} (Em Dia)", f"{mes2.title()} (Vencido)"]
     df.reset_index(inplace=True)
-
-    # Ordem correta das áreas
-    ordem_areas = [
-        "CPIN - COORDENACAO DE PINTURA",
-        "CQP/GS - COORDENAÇÃO DE QUALIDADE E PCP",
-        "CQP-LAB - SUPERVISAO DE LABORATORIO",
-        "GCZ- LCI/LIN - SUPERVISAO DE CORTE LONGITUDINAL",
-        "GCZ- LCT/LPR/LBT - SUPERVISAO DE CORTE TRANSVERSAL",
-        "GCZ- LLB - SUPERVISAO DE LAVADORA",
-        "GCZ- LSL/LGT - SUPERVISAO DE SOLDA A LASER",
-        "GCZ/GS - GERENCIA CENTRO DE SERVICO E PINTURA",
-        "GCZ-CS - SUPERVISÃO DE CENTRO DE SERVIÇOS",
-        "GDM/GS - GERENCIA DE MANUTENCAO",
-        "GDM-EXEC - SUPERVISAO DE EXECUCAO",
-        "GDM-INSPELE - SUPERVISAO DE INSPECAO ELETRICA",
-        "GDM-INSPMEC - SUPERVISAO DE INSPECAO MECANICA",
-        "GGOP/GS - GERENCIA GERAL DE OPERACOES PORTO REAL",
-        "GPR-PLANPROG - SUPERVISAO DE PLANEJAMENTO E PROGRAMACAO",
-        "GZL/GS - GERENCIA DE ZINCAGEM E LOGÍSTICA",
-        "GZL-EMB - SUPERVISAO DE EMBALAGEM",
-        "GZL-LOG - SUPERVISAO DE LOGISTICA",
-        "GZL-ZINCAGEM - SUPERVISAO DA ZINCAGEM",
-        "TOTAL GERAL"
-    ]
 
     df['area'] = pd.Categorical(df['area'], categories=ordem_areas, ordered=True)
     df = df.sort_values('area')
