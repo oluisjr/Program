@@ -176,6 +176,10 @@ def exportar_para_excel_pivo():
 
     df_pivo.columns = [f"{mes} Em Dia" if tipo == 'em_dia' else f"{mes} Vencido" for tipo, mes in df_pivo.columns]
     df_pivo.reset_index(inplace=True)
+    
+    # Reordenar a coluna 'area'
+    df_pivo['area'] = pd.Categorical(df_pivo['area'], categories=ordem_areas, ordered=True)
+    df_pivo = df_pivo.sort_values('area')
 
     meses_ordem = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
     colunas_ordenadas = ['area']
